@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
-<<<<<<< HEAD
-=======
 import copy
 
->>>>>>> upstream/master
 class Checker:
     """The checkers piece."""
 
