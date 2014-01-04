@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+<<<<<<< HEAD
+=======
+import copy
+
+>>>>>>> upstream/master
 class Checker:
     """The checkers piece."""
 
@@ -62,7 +67,7 @@ class Board:
                 s += '  +-+-+-+-+-+-+-+-+\n'
                 s += ('\n|%s| %i' % ('|'.join([Checker.character(p) for p in row]), len(self.data)-n-1))[::-1]
         s += '  +-+-+-+-+-+-+-+-+'
-        s += '\nBest move result: ' + str(get_best_move(self)) # temporary
+        #s += '\nBest move result: ' + str(get_best_move(self)) # temporary
         return s
 
     def number_of_pieces(self, player):
@@ -85,8 +90,7 @@ class Board:
         from_piece = self.data[from_x][from_y]
         to_piece = self.data[to_x][to_y]
 
-        board_copy = Board(True)
-        board_copy.data = [x[:] for x in self.data]
+        board_copy = copy.deepcopy(self)
 
         # first check to see if there's a piece in `from`
         if from_piece is None: return False, 'There is no piece there!'
@@ -119,6 +123,22 @@ class Board:
                 return True, board_copy
         else:
             return False, 'That\'s not a diagonal move!'
+
+def comp_move(board, player, move):
+
+    message = board.move(player, move[0], move[1])
+    board = message[1]
+
+    # handle multiple jumps
+    for i in range(2, len(move)):
+        message = board.move(player, move[i-1], move[i]) 
+        if message[0]:
+            board = message[1]
+        else:
+            print(message[1])
+            break
+    
+    return board
 
 def is_coord(coord):
     """Is this string a valid coordinate?"""
@@ -321,12 +341,33 @@ def get_o_best_move(board, recurse_depth = 0, moves_so_far = [], minimum = -1337
 
 
 if __name__ == '__main__':
-    players = input('Enter number of players (1 or 2): ')
-    while players not in ['1', '2']:
+    players = input('Enter number of players (0, 1, 2): ')
+    while players not in ['0','1', '2']:
         players = input('Invalid number of players. Try again: ')
 
+    if players == '0':
+        board = Board()
+        while True:
+            print(board.render(Checker.PLAYER_ONE))
+            move = get_o_best_move(board)
+            print(str(move))
+            print(eval_game_state(board))
+            board = comp_move(board, Checker.PLAYER_ONE, move[len(move)-1])
+            print(board.render(Checker.PLAYER_ONE))  #disabled board rotation
+            move = get_best_move(board)
+            print(str(move))
+            print(eval_game_state(board))
+            board = comp_move(board, Checker.PLAYER_TWO, move[len(move)-1])
     if players == '1':
-        print('AI not implemented yet. So... I\'ll just... do nothing')
+        board = Board()
+        while True:
+            print(board.render(Checker.PLAYER_ONE))
+            board = input_and_move(Checker.PLAYER_ONE, board)
+            print(board.render(Checker.PLAYER_TWO))
+            move = get_best_move(board)
+            print(str(move))
+            print(eval_game_state(board))
+            board = comp_move(board, Checker.PLAYER_TWO, move[len(move)-1])
     else:
         board = Board()
         while True:
