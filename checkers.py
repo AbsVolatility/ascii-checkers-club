@@ -191,43 +191,100 @@ def eval_game_state(board):
 
     return totalscore
 
+def is_capture(board, player, from_coords, to_coords):
+    from_y, from_x = 'ABCDEFGH'.index(from_coords[0]), int(from_coords[1])
+    to_y, to_x = 'ABCDEFGH'.index(to_coords[0]), int(to_coords[1])
+    
+    adx, ady = abs(from_x - to_x), abs(from_y - to_y)
+    if adx == ady == 2:
+        jumped_x, jumped_y = (from_x + to_x) // 2, (from_y + to_y) // 2
+        jumped_piece = board.data[jumped_x][jumped_y]
+        if jumped_piece is None or jumped_piece.player == player:
+            return False
+        else:
+            return True
+
 def get_valid_moves(board, player):
     moves = []
 
     for x in range(8):
         for y in range(8):
             if board.data[x][y] is not None and board.data[x][y].player == player:
-                direction = 1 if player == Checker.PLAYER_ONE else -1
-                can_move_forwards = x > 0 if player == Checker.PLAYER_ONE else x < 7
-                if can_move_forwards and y > 0 and board.data[x + direction][y - 1] is None:
-                    moves.append([xy_to_coords(x, y), xy_to_coords(x + direction, y - 1)])
-                if can_move_forwards and y < 7 and board.data[x + direction][y + 1] is None:
-                    moves.append([xy_to_coords(x, y), xy_to_coords(x + direction, y + 1)])
-                # TODO kings
-                # TODO capturing
+                
+                # standard pieces
+                if not board.data[x][y].king:
+                    direction = 1 if player == Checker.PLAYER_ONE else -1
+                    capture = 2 if player == Checker.PLAYER_ONE else -2
+                    can_move_forwards = x < 7 if player == Checker.PLAYER_ONE else x > 0
+                    
+                    # moves
+                    if can_move_forwards and y > 0 and board.data[x + direction][y - 1] is None:
+                        moves.append([xy_to_coords(x, y), xy_to_coords(x + direction, y - 1)])
+                    if can_move_forwards and y < 7 and board.data[x + direction][y + 1] is None:
+                        moves.append([xy_to_coords(x, y), xy_to_coords(x + direction, y + 1)])
+                        
+                    ## captures
+                    ## use nested ifs for readability
+                    can_move_forwards = x < 6 if player == Checker.PLAYER_ONE else x > 1
+                    if can_move_forwards and y > 1 and board.data[x + capture][y - 2] is None:
+                        if is_capture(board, player, xy_to_coords(x, y), xy_to_coords(x + capture, y - 2)):
+                            moves.append([xy_to_coords(x, y), xy_to_coords(x + capture, y - 2)])
+                    if can_move_forwards and y < 6 and board.data[x + capture][y + 2] is None:
+                        if is_capture(board, player, xy_to_coords(x, y), xy_to_coords(x + capture, y + 2)):
+                            moves.append([xy_to_coords(x, y), xy_to_coords(x + capture, y + 2)])
+
+                # kings
+                if board.data[x][y].king:
+
+                    # moves
+                    if y > 0 and x > 0 and board.data[x - 1][y - 1] is None:
+                        moves.append([xy_to_coords(x, y), xy_to_coords(x - 1, y - 1)])
+                    if y < 7 and x < 7 and board.data[x + 1][y + 1] is None:
+                        moves.append([xy_to_coords(x, y), xy_to_coords(x + 1, y + 1)])
+                    if y > 0 and x < 7 and board.data[x + 1][y - 1] is None:
+                        moves.append([xy_to_coords(x, y), xy_to_coords(x + 1, y - 1)])
+                    if y < 7 and x > 0 and board.data[x - 1][y + 1] is None:
+                        moves.append([xy_to_coords(x, y), xy_to_coords(x - 1, y + 1)])
+
+                    # captures
+                    if y > 1 and x > 1 and board.data[x - 2][y - 2] is None:
+                        if is_capture(board, player, xy_to_coords(x, y), xy_to_coords(x - 1, y - 1)):
+                            moves.append([xy_to_coords(x, y), xy_to_coords(x - 1, y - 1)])
+                    if y < 6 and x < 6 and board.data[x + 2][y + 2] is None:
+                        if is_capture(board, player, xy_to_coords(x, y), xy_to_coords(x + 1, y + 1)):
+                            moves.append([xy_to_coords(x, y), xy_to_coords(x + 1, y + 1)])
+                    if y > 1 and x < 6 and board.data[x + 2][y - 2] is None:
+                        if is_capture(board, player, xy_to_coords(x, y), xy_to_coords(x + 1, y - 1)):
+                            moves.append([xy_to_coords(x, y), xy_to_coords(x + 1, y - 1)])
+                    if y < 6 and x > 1 and board.data[x - 2][y + 2] is None:
+                        if is_capture(board, player, xy_to_coords(x, y), xy_to_coords(x - 1, y + 1)):
+                            moves.append([xy_to_coords(x, y), xy_to_coords(x - 1, y + 1)])
 
     return moves
 
 def xy_to_coords(x, y):
     return 'ABCDEFGH'[y] + str(x)
 
-def get_best_move(board, recurse_depth = 0, moves_so_far = []):
+def get_best_move(board, recurse_depth = 0, moves_so_far = [], maximum = 1337):
     # first we need to get a list of valid moves.
     moves = get_valid_moves(board, Checker.PLAYER_TWO)
     # now we should loop through them, and use recursion to keep getting moves.
     boards = []
     #print('a',moves) #debug
+    minimum = -1337
     for m in moves:
         AI_moved_board = board.move(Checker.PLAYER_TWO, m[0], m[1])[1]
             # we've done a full move.
             # now call `get_o_best_move` on the new board.
-        if recurse_depth >= 3: # make this bigger for more look-ahead
+        if recurse_depth >= 4: # make this bigger for more look-ahead
             boards.append([AI_moved_board, eval_game_state(AI_moved_board)])
         else:
             copy_moves_so_far = moves_so_far[:]
             copy_moves_so_far.append(m)
-            next_move = get_o_best_move(AI_moved_board, recurse_depth + 1, copy_moves_so_far)
+            next_move = get_o_best_move(AI_moved_board, recurse_depth + 1, copy_moves_so_far, minimum)
             boards.append(next_move)
+            if next_move[1] > minimum: minimum = next_move[1]
+            if next_move[1] > maximum: return next_move + moves_so_far
     if boards == []:
         return [0,-1337]
     best_board = boards[0]
@@ -235,23 +292,26 @@ def get_best_move(board, recurse_depth = 0, moves_so_far = []):
         if b[1] > best_board[1]: best_board = b
     return best_board + moves_so_far
 
-def get_o_best_move(board, recurse_depth = 0, moves_so_far = []):
+def get_o_best_move(board, recurse_depth = 0, moves_so_far = [], minimum = -1337):
     # first we need to get a list of valid moves.
     moves = get_valid_moves(board, Checker.PLAYER_ONE)
     # now we should loop through them, and use recursion to keep getting moves.
     boards = []
     #print('o',moves) #debug
+    maximum = 1337
     for m in moves:
         opponent_moved_board = board.move(Checker.PLAYER_ONE, m[0], m[1])[1]
             # we've done a full move.
             # now call `get_best_move` on the new board.
-        if recurse_depth >= 3: # make this bigger for more look-ahead
+        if recurse_depth >= 4: # make this bigger for more look-ahead
             boards.append([opponent_moved_board, eval_game_state(opponent_moved_board)])
         else:
             copy_moves_so_far = moves_so_far[:]
             copy_moves_so_far.append(m)
-            next_move = get_best_move(opponent_moved_board, recurse_depth + 1, copy_moves_so_far)
+            next_move = get_best_move(opponent_moved_board, recurse_depth + 1, copy_moves_so_far, maximum)
             boards.append(next_move)
+            if next_move[1] < maximum: maximum = next_move[1]
+            if next_move[1] < minimum: return next_move + moves_so_far
     if boards == []:
         return [0,1337]
     best_board = boards[0]
